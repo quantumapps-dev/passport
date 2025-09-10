@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -11,12 +10,11 @@ import { FormData, FormSchema } from "@/schemas/formSchema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover as _Popover } from "@/components/ui/popover";
 
 export function FormComponent() {
   const [step, setStep] = useState<number>(0);
@@ -27,24 +25,15 @@ export function FormComponent() {
     mode: "onTouched",
   });
 
-  const steps: string[] = ["Applicant", "Contact & Address", "Passport Details"];
+  const steps: string[] = ["Applicant", "Documents", "Review & Submit"];
 
   const stepFields: string[][] = [
-    ["firstName", "middleName", "lastName", "dateOfBirth", "gender"],
-    [
-      "email",
-      "phone",
-      "ssn",
-      "address.street",
-      "address.city",
-      "address.state",
-      "address.zip",
-      "address.country",
-    ],
-    ["passportType", "applicationType", "previousPassportNumber", "agreeToDeclaration"],
+    ["firstName", "lastName", "dateOfBirth"],
+    ["email", "citizenshipCertificate"],
+    ["agreeToDeclaration"],
   ];
 
-  const formatSingleDate = (d?: Date) => (d ? format(d, "PPP") : "Select date");
+  const formatSingleDate = (d?: Date) => (d ? d.toISOString().slice(0, 10) : "Select date");
 
   function hasErrorAt(path: string): boolean {
     const parts = path.split(".");
@@ -73,7 +62,14 @@ export function FormComponent() {
   const onSubmit = form.handleSubmit(async (values) => {
     setLoading(true);
     try {
-      console.log("Passport application payload:", values);
+      console.log("Citizenship application payload:", {
+        ...values,
+        citizenshipCertificate: values.citizenshipCertificate ? {
+          name: values.citizenshipCertificate[0]?.name,
+          type: values.citizenshipCertificate[0]?.type,
+          size: values.citizenshipCertificate[0]?.size,
+        } : null,
+      });
       await new Promise((r) => setTimeout(r, 800));
     } catch (err) {
       console.error(err);
@@ -86,7 +82,7 @@ export function FormComponent() {
     <Form {...form}>
       <form onSubmit={onSubmit} className="grid gap-6 max-w-3xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">US Passport Application</h2>
+          <h2 className="text-lg font-semibold">Citizenship Certificate Application</h2>
           <div className="text-sm text-muted-foreground">Step {step + 1} of {steps.length}: {steps[step]}</div>
         </div>
 
@@ -100,20 +96,6 @@ export function FormComponent() {
                   <FormLabel>First name</FormLabel>
                   <FormControl>
                     <Input placeholder="Given name" {...field} aria-invalid={hasErrorAt(field.name)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="middleName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Middle name (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Middle name" {...field} aria-invalid={hasErrorAt(field.name)} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -163,37 +145,6 @@ export function FormComponent() {
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="gender"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Gender</FormLabel>
-                  <FormControl>
-                    <RadioGroup value={field.value} onValueChange={field.onChange} className="flex flex-row gap-4">
-                      <label className="flex items-center gap-2">
-                        <RadioGroupItem value="Male" />
-                        <span>Male</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <RadioGroupItem value="Female" />
-                        <span>Female</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <RadioGroupItem value="X" />
-                        <span>X</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <RadioGroupItem value="PreferNotToSay" />
-                        <span>Prefer not to say</span>
-                      </label>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
         )}
 
@@ -215,178 +166,34 @@ export function FormComponent() {
 
             <FormField
               control={form.control}
-              name="phone"
+              name="citizenshipCertificate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel htmlFor="citizenshipCertificate">Citizenship certificate (JPEG or PDF)</FormLabel>
                   <FormControl>
-                    <Input placeholder="(555) 555-5555" {...field} aria-invalid={hasErrorAt(field.name)} />
+                    <Input
+                      id="citizenshipCertificate"
+                      type="file"
+                      accept="image/jpeg,application/pdf"
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        field.onChange(e.target.files ?? null);
+                      }}
+                      ref={field.ref as React.LegacyRef<HTMLInputElement>}
+                      aria-invalid={hasErrorAt(field.name)}
+                    />
                   </FormControl>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {field.value && field.value.length > 0 ? `Selected file: ${field.value[0].name}` : "No file selected"}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="ssn"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Social Security Number (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="123-45-6789" {...field} aria-invalid={hasErrorAt(field.name)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid gap-2">
-              <div className="text-sm font-medium">Mailing address</div>
-
-              <FormField
-                control={form.control}
-                name="address.street"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Main St" {...field} aria-invalid={hasErrorAt(field.name)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="address.city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input placeholder="City" {...field} aria-invalid={hasErrorAt(field.name)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="address.state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input placeholder="State" {...field} aria-invalid={hasErrorAt(field.name)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="address.zip"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ZIP</FormLabel>
-                      <FormControl>
-                        <Input placeholder="12345" {...field} aria-invalid={hasErrorAt(field.name)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="address.country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="United States" {...field} aria-invalid={hasErrorAt(field.name)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="grid gap-4">
-            <FormField
-              control={form.control}
-              name="passportType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passport product</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="Book">Passport Book</SelectItem>
-                          <SelectItem value="Card">Passport Card</SelectItem>
-                          <SelectItem value="BookAndCard">Book + Card</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="applicationType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Application type</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select application type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="New">New</SelectItem>
-                          <SelectItem value="Renewal">Renewal</SelectItem>
-                          <SelectItem value="Replacement">Replacement</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="previousPassportNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Previous passport number (if any)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Previous passport #" {...field} aria-invalid={hasErrorAt(field.name)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="agreeToDeclaration"
@@ -396,7 +203,7 @@ export function FormComponent() {
                     <Checkbox checked={Boolean(field.value)} onCheckedChange={(v) => field.onChange(Boolean(v))} aria-invalid={hasErrorAt(field.name)} />
                   </FormControl>
                   <div className="flex-1">
-                    <FormLabel className="mb-0">I declare under penalty of perjury that the information provided is true and correct.</FormLabel>
+                    <FormLabel className="mb-0">I declare that the information and document provided are true and correct.</FormLabel>
                     <FormMessage />
                   </div>
                 </FormItem>

@@ -1,62 +1,99 @@
-import { z } from "zod";
+// @ts-nocheck 
+ import { z } from "zod";
 
-// Address schema for US addresses only
-export const AddressSchema = z.object({
-	line1: z
-		.string()
-		.min(1, "Address Line 1 is required.")
-		.describe(
-			"Primary street address line. Include house/building number and street name (e.g., 123 Main St).",
-		),
-	line2: z
-		.string()
-		.optional()
-		.describe(
-			"Additional address information such as apartment, suite, unit, or floor (optional).",
-		),
-	street: z
-		.string()
-		.min(1, "Street is required.")
-		.describe(
-			"Street name if captured separately (e.g., Main St). If already in Line 1, repeat here for clarity.",
-		),
-	city: z
-		.string()
-		.min(1, "City is required.")
-		.describe("City name within the United States (e.g., San Francisco)."),
-	state: z
-		.string()
-		.min(1, "State is required.")
-		.describe("State name within the United States (e.g., California)."),
-	country: z
-		.string()
-		.describe(
-			"Country must be the United States. Accepted inputs: United States, US, USA, unitedstates, us, usa.",
-		),
-	zipCode: z
-		.string()
-		.trim()
-		.regex(/^[0-9]{5}(?:-[0-9]{4})?$/, "Enter a valid US ZIP code (e.g., 94103 or 94103-1234).")
-		.describe(
-			"5-digit US ZIP code, with optional 4-digit extension (ZIP+4). Will be verified against a postal API.",
-		),
-});
+function today() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export const FormSchema = z.object({
-	name: z
-		.string()
-		.min(1, "Name is required.")
-		.describe("Full legal name of the person filling out the form."),
-	email: z
-		.string()
-		.email("Enter a valid email address.")
-		.describe(
-			"Primary contact email address. Must be a valid format (e.g., name@example.com).",
-		),
-	address: AddressSchema.describe("Mailing address located in the United States."),
+  firstName: z
+    .string({ required_error: "First name is required" })
+    .trim()
+    .min(2, "First name must be at least 2 characters")
+    .max(50, "First name must be at most 50 characters"),
+
+  middleName: z
+    .string()
+    .trim()
+    .min(1, "Middle name must be at least 1 character")
+    .max(50, "Middle name must be at most 50 characters")
+    .optional(),
+
+  lastName: z
+    .string({ required_error: "Last name is required" })
+    .trim()
+    .min(2, "Last name must be at least 2 characters")
+    .max(50, "Last name must be at most 50 characters"),
+
+  dateOfBirth: z.coerce.date({
+    required_error: "Date of birth is required",
+    invalid_type_error: "Date of birth is invalid",
+  }).refine((d) => {
+    const now = today();
+    if (!(d instanceof Date) || isNaN(d.getTime())) return false;
+    const age = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+    return age >= 0 && age <= 120;
+  }, {
+    message: "Please enter a valid date of birth",
+  }),
+
+  gender: z.enum(["Male", "Female", "X", "PreferNotToSay"], {
+    required_error: "Gender is required",
+  }),
+
+  email: z.string({ required_error: "Email is required" }).email("Email must be valid"),
+
+  phone: z
+    .string({ required_error: "Phone number is required" })
+    .regex(/^\+?1?\s*\-?\(?\d{3}\)?\s*\-?\d{3}\s*\-?\d{4}$/, "Phone number must be a valid US phone number"),
+
+  ssn: z
+    .string()
+    .regex(/^\d{3}-?\d{2}-?\d{4}$/, "SSN must be 9 digits (with or without dashes)")
+    .optional(),
+
+  address: z.object({
+    street: z
+      .string({ required_error: "Street address is required" })
+      .trim()
+      .min(5, "Street must be at least 5 characters")
+      .max(100, "Street must be at most 100 characters"),
+    city: z
+      .string({ required_error: "City is required" })
+      .trim()
+      .min(2, "City must be at least 2 characters")
+      .max(50, "City must be at most 50 characters"),
+    state: z
+      .string({ required_error: "State is required" })
+      .trim()
+      .min(2, "State must be at least 2 characters")
+      .max(50, "State must be at most 50 characters"),
+    zip: z
+      .string({ required_error: "ZIP code is required" })
+      .regex(/^\d{5}(-\d{4})?$/, "ZIP code must be 5 digits or ZIP+4"),
+    country: z
+      .string({ required_error: "Country is required" })
+      .trim()
+      .min(2, "Country must be at least 2 characters")
+      .max(56, "Country must be at most 56 characters"),
+  }),
+
+  passportType: z.enum(["Book", "Card", "BookAndCard"], { required_error: "Passport type is required" }),
+
+  applicationType: z.enum(["New", "Renewal", "Replacement"], { required_error: "Application type is required" }),
+
+  previousPassportNumber: z
+    .string()
+    .trim()
+    .min(5, "Passport number must be at least 5 characters")
+    .max(30, "Passport number must be at most 30 characters")
+    .optional(),
+
+  agreeToDeclaration: z
+    .boolean({ required_error: "You must accept the declaration" })
+    .refine((v) => v === true, { message: "You must accept the declaration" }),
 });
 
-export type AddressData = z.infer<typeof AddressSchema>;
 export type FormData = z.infer<typeof FormSchema>;
-
-

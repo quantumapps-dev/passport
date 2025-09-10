@@ -3,18 +3,18 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { format } from "date-fns";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { FormData, FormSchema } from "@/schemas/formSchema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover as _Popover } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 
 export function FormComponent() {
   const [step, setStep] = useState<number>(0);
@@ -25,15 +25,18 @@ export function FormComponent() {
     mode: "onTouched",
   });
 
-  const steps: string[] = ["Applicant", "Documents", "Review & Submit"];
+  const spouseFieldArray = useFieldArray<FormData, "spouseNames">({ control: form.control, name: "spouseNames" as const });
+  const childrenFieldArray = useFieldArray<FormData, "childrenNames">({ control: form.control, name: "childrenNames" as const });
+
+  const steps: string[] = ["Applicant", "Family & Children", "Contact"];
 
   const stepFields: string[][] = [
     ["firstName", "lastName", "dateOfBirth"],
-    ["email", "citizenshipCertificate"],
-    ["agreeToDeclaration"],
+    ["hasSpouse", "spouseNames", "hasChildren", "childrenNames"],
+    ["email", "phone"],
   ];
 
-  const formatSingleDate = (d?: Date) => (d ? d.toISOString().slice(0, 10) : "Select date");
+  const formatSingleDate = (d?: Date) => (d ? format(d, "PPP") : "Select date");
 
   function hasErrorAt(path: string): boolean {
     const parts = path.split(".");
@@ -62,15 +65,8 @@ export function FormComponent() {
   const onSubmit = form.handleSubmit(async (values) => {
     setLoading(true);
     try {
-      console.log("Citizenship application payload:", {
-        ...values,
-        citizenshipCertificate: values.citizenshipCertificate ? {
-          name: values.citizenshipCertificate[0]?.name,
-          type: values.citizenshipCertificate[0]?.type,
-          size: values.citizenshipCertificate[0]?.size,
-        } : null,
-      });
-      await new Promise((r) => setTimeout(r, 800));
+      console.log("Applicant form payload:", values);
+      await new Promise((r) => setTimeout(r, 700));
     } catch (err) {
       console.error(err);
     } finally {
@@ -82,7 +78,7 @@ export function FormComponent() {
     <Form {...form}>
       <form onSubmit={onSubmit} className="grid gap-6 max-w-3xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Citizenship Certificate Application</h2>
+          <h2 className="text-lg font-semibold">Applicant & Family Information</h2>
           <div className="text-sm text-muted-foreground">Step {step + 1} of {steps.length}: {steps[step]}</div>
         </div>
 
@@ -152,6 +148,114 @@ export function FormComponent() {
           <div className="grid gap-4">
             <FormField
               control={form.control}
+              name="hasSpouse"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3">
+                  <FormControl>
+                    <Checkbox checked={Boolean(field.value)} onCheckedChange={(v) => field.onChange(Boolean(v))} aria-invalid={hasErrorAt(field.name)} />
+                  </FormControl>
+                  <div className="flex-1">
+                    <FormLabel className="mb-0">Do you have a spouse?</FormLabel>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {form.getValues("hasSpouse") && (
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Spouse names</div>
+                  <Button type="button" onClick={() => spouseFieldArray.append({ name: "" })} disabled={loading}>
+                    Add spouse
+                  </Button>
+                </div>
+
+                {spouseFieldArray.fields.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No spouse names added yet.</div>
+                )}
+
+                {spouseFieldArray.fields.map((item, index) => (
+                  <FormField
+                    key={item.id}
+                    control={form.control}
+                    name={`spouseNames.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder={`Spouse #${index + 1} full name`} {...field} aria-invalid={hasErrorAt(field.name)} />
+                        </FormControl>
+                        <div>
+                          <Button type="button" variant="destructive" onClick={() => spouseFieldArray.remove(index)}>
+                            Remove
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
+            <FormField
+              control={form.control}
+              name="hasChildren"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3">
+                  <FormControl>
+                    <Checkbox checked={Boolean(field.value)} onCheckedChange={(v) => field.onChange(Boolean(v))} aria-invalid={hasErrorAt(field.name)} />
+                  </FormControl>
+                  <div className="flex-1">
+                    <FormLabel className="mb-0">Do you have children?</FormLabel>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {form.getValues("hasChildren") && (
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Children names</div>
+                  <Button type="button" onClick={() => childrenFieldArray.append({ name: "" })} disabled={loading}>
+                    Add child
+                  </Button>
+                </div>
+
+                {childrenFieldArray.fields.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No children names added yet.</div>
+                )}
+
+                {childrenFieldArray.fields.map((item, index) => (
+                  <FormField
+                    key={item.id}
+                    control={form.control}
+                    name={`childrenNames.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder={`Child #${index + 1} full name`} {...field} aria-invalid={hasErrorAt(field.name)} />
+                        </FormControl>
+                        <div>
+                          <Button type="button" variant="destructive" onClick={() => childrenFieldArray.remove(index)}>
+                            Remove
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="grid gap-4">
+            <FormField
+              control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
@@ -166,46 +270,14 @@ export function FormComponent() {
 
             <FormField
               control={form.control}
-              name="citizenshipCertificate"
+              name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel htmlFor="citizenshipCertificate">Citizenship certificate (JPEG or PDF)</FormLabel>
+                  <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input
-                      id="citizenshipCertificate"
-                      type="file"
-                      accept="image/jpeg,application/pdf"
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        field.onChange(e.target.files ?? null);
-                      }}
-                      ref={field.ref as React.LegacyRef<HTMLInputElement>}
-                      aria-invalid={hasErrorAt(field.name)}
-                    />
+                    <Input placeholder="(555) 555-5555" {...field} aria-invalid={hasErrorAt(field.name)} />
                   </FormControl>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {field.value && field.value.length > 0 ? `Selected file: ${field.value[0].name}` : "No file selected"}
-                  </div>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="grid gap-4">
-            <FormField
-              control={form.control}
-              name="agreeToDeclaration"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start gap-3">
-                  <FormControl>
-                    <Checkbox checked={Boolean(field.value)} onCheckedChange={(v) => field.onChange(Boolean(v))} aria-invalid={hasErrorAt(field.name)} />
-                  </FormControl>
-                  <div className="flex-1">
-                    <FormLabel className="mb-0">I declare that the information and document provided are true and correct.</FormLabel>
-                    <FormMessage />
-                  </div>
                 </FormItem>
               )}
             />
@@ -222,7 +294,7 @@ export function FormComponent() {
                 Next
               </Button>
             ) : (
-              <Button type="submit" disabled={loading}>{loading ? "Submitting..." : "Submit application"}</Button>
+              <Button type="submit" disabled={loading}>{loading ? "Submitting..." : "Submit form"}</Button>
             )}
           </div>
 
